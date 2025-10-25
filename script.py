@@ -4,11 +4,231 @@ import subprocess
 import requests
 import os
 import keyboard
+import ctypes
+import sys
+
+# Function to check if script is running as administrator
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+
+# Function to disconnect RDP session
+def disconnect_rdp():
+    print("Attempting to disconnect RDP session...")
+    try:
+        # Get current username
+        username = os.getenv('USERNAME')
+        
+        # Run query user command to get session ID
+        result = subprocess.run(['query', 'user', username], capture_output=True, text=True, encoding='utf-8')
+        
+        if result.returncode == 0:
+            lines = result.stdout.strip().split('\n')
+            if len(lines) > 1:
+                # Skip header line and process each session
+                for line in lines[1:]:
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        session_id = parts[2]
+                        print(f"Found session ID: {session_id}")
+                        
+                        # Disconnect the session
+                        disconnect_cmd = ['tscon', session_id, '/dest:console']
+                        disconnect_result = subprocess.run(disconnect_cmd, capture_output=True, text=True)
+                        
+                        if disconnect_result.returncode == 0:
+                            print(f"Successfully disconnected session {session_id}")
+                            return True
+                        else:
+                            print(f"Failed to disconnect session {session_id}: {disconnect_result.stderr}")
+            
+            print("No active RDP sessions found for current user")
+            return True
+        else:
+            print("Error querying user sessions:", result.stderr)
+            return False
+            
+    except Exception as e:
+        print(f"Error during RDP disconnection: {e}")
+        return False
 
 # Enable failsafe - move mouse to top-left corner to abort
 pyautogui.FAILSAFE = False
 
-# Download and read the numbers file
+def main():
+    # Check if running as administrator
+    if not is_admin():
+        print("This script requires administrator privileges to disconnect RDP sessions.")
+        print("Please run as Administrator.")
+        # Re-run the script with admin rights
+        try:
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+            sys.exit(0)
+        except Exception as e:
+            print(f"Failed to elevate privileges: {e}")
+            print("Continuing without RDP disconnection...")
+    
+    # Disconnect RDP session
+    print("=== RDP DISCONNECTION PHASE ===")
+    rdp_success = disconnect_rdp()
+    
+    if rdp_success:
+        print("RDP disconnection completed successfully!")
+    else:
+        print("RDP disconnection failed, but continuing with automation...")
+    
+    # Wait a moment before starting main automation
+    time.sleep(3)
+    
+    print("\n=== STARTING MAIN AUTOMATION ===")
+    
+    # Rest of your existing main function continues here...
+    time.sleep(60)
+    # Open MuMu_Installer.exe without blocking
+    print("Opening MuMu_Installer.exe...")
+    subprocess.Popen("MuMu_Installer.exe")
+
+    # Wait 3 seconds for the installer to load
+    print("Waiting 3 seconds for installer to load...")
+    time.sleep(3)
+
+    # Look for the install.png image on screen
+    print("Searching for install.png on screen...")
+    install_location = pyautogui.locateOnScreen('install.png', confidence=0.8)
+    install_center = pyautogui.center(install_location)
+    print(f"Found install.png at: {install_location}")
+    print(f"Clicking at center: X: {install_center.x}, Y: {install_center.y}")
+    pyautogui.click(install_center)
+    print("Successfully clicked the install button!")
+
+    # Wait for installation to complete
+    print("Waiting for installation to complete...")
+    time.sleep(70)
+
+    # Click option.png
+    print("Searching for option.png on screen...")
+    option_location = pyautogui.locateOnScreen('option.png', confidence=0.8)
+    option_center = pyautogui.center(option_location)
+    print(f"Found option.png at: {option_location}")
+    print(f"Clicking at center: X: {option_center.x}, Y: {option_center.y}")
+    pyautogui.click(option_center)
+    print("Successfully clicked option.png!")
+
+    # Wait a moment for options to load
+    time.sleep(5)
+
+    # Click backup_restore.png
+    print("Searching for backup_restore.png on screen...")
+    backup_restore_location = pyautogui.locateOnScreen('backup_restore.png', confidence=0.8)
+    backup_restore_center = pyautogui.center(backup_restore_location)
+    print(f"Found backup_restore.png at: {backup_restore_location}")
+    print(f"Clicking at center: X: {backup_restore_center.x}, Y: {backup_restore_center.y}")
+    pyautogui.click(backup_restore_center)
+    print("Successfully clicked backup_restore.png!")
+
+    # Wait a moment for backup/restore options to load
+    time.sleep(5)
+
+    # Click restore.png
+    print("Searching for restore.png on screen...")
+    restore_location = pyautogui.locateOnScreen('restore.png', confidence=0.8)
+    restore_center = pyautogui.center(restore_location)
+    print(f"Found restore.png at: {restore_location}")
+    print(f"Clicking at center: X: {restore_center.x}, Y: {restore_center.y}")
+    pyautogui.click(restore_center)
+    print("Successfully clicked restore.png!")
+
+    # Wait for restore dialog to load
+    time.sleep(5)
+
+    # Click change_directory.png
+    print("Searching for change_directory.png on screen...")
+    change_directory_location = pyautogui.locateOnScreen('change_directory.png', confidence=0.8)
+    change_directory_center = pyautogui.center(change_directory_location)
+    print(f"Found change_directory.png at: {change_directory_location}")
+    print(f"Clicking at center: X: {change_directory_center.x}, Y: {change_directory_center.y}")
+    pyautogui.click(change_directory_center)
+    print("Successfully clicked change_directory.png!")
+
+    # Wait for directory dialog to load
+    time.sleep(1)
+
+    # Type the directory path and press Enter
+    print("Typing directory path...")
+    pyautogui.write(r'C:\Users\Rdpuser\Desktop\whatsapp')
+    pyautogui.press('enter')
+    print("Directory path entered successfully!")
+
+    # Wait for directory to load
+    time.sleep(5)
+
+    # Double click on mumudata.png
+    print("Searching for mumudata.png on screen...")
+    mumudata_location = pyautogui.locateOnScreen('mumudata.png', confidence=0.8)
+    mumudata_center = pyautogui.center(mumudata_location)
+    print(f"Found mumudata.png at: {mumudata_location}")
+    print(f"Double clicking at center: X: {mumudata_center.x}, Y: {mumudata_center.y}")
+    pyautogui.doubleClick(mumudata_center)
+    print("Successfully double clicked mumudata.png!")
+
+    time.sleep(5)
+    # Click start_emulator.png
+    print("Searching for start_emulator.png on screen...")
+    start_emulator = pyautogui.locateOnScreen('start_emulator.png', confidence=0.8)
+    start_emulator_center = pyautogui.center(start_emulator)
+    print(f"Found start_emulator.png at: {start_emulator}")
+    print(f"Clicking at center: X: {start_emulator_center.x}, Y: {start_emulator_center.y}")
+    pyautogui.click(start_emulator_center)
+    print("Successfully clicked start_emulator.png!")
+
+    # Wait 20 seconds for emulator to start
+    print("Waiting 20 seconds for emulator to start...")
+    time.sleep(60)
+
+    # Rest of your WhatsApp automation code...
+    whatsapp_icon = pyautogui.locateOnScreen('whatsapp_icon.png', confidence=0.8)
+    whatsapp_icon = pyautogui.center(whatsapp_icon)
+    print(f"Found whatsapp_icon.png at: {whatsapp_icon}")
+    print(f"Clicking at center: X: {whatsapp_icon.x}, Y: {whatsapp_icon.y}")
+    pyautogui.click(whatsapp_icon)
+    print("Successfully clicked whatsapp_icon.png!")
+
+    time.sleep(5)
+
+    print("Searching for first_agree.png on screen...")
+    first_agree = pyautogui.locateOnScreen('first_agree.png', confidence=0.8)
+    first_agree = pyautogui.center(first_agree)
+    print(f"Found start_emulator.png at: {first_agree}")
+    print(f"Clicking at center: X: {first_agree.x}, Y: {first_agree.y}")
+    pyautogui.click(first_agree)
+    print("Successfully clicked first_agree.png!")
+
+    time.sleep(5)
+
+    print("Setting up number verification...")
+    if not download_numbers_file():
+        return
+    
+    country_name, country_code, numbers = read_numbers_file()
+    
+    if not country_name or not country_code or not numbers:
+        print("Failed to get valid data from numbers file")
+        return
+    
+    print(f"\nStarting automation for {len(numbers)} numbers...")
+    print("Make sure WhatsApp is ready for number input!")
+    
+    # Wait a moment for user to prepare
+    time.sleep(2)
+    
+    # Start processing numbers
+    process_numbers(country_name, country_code, numbers)
+    
+    print("\nAutomation completed! Check not_usable.txt for unusable numbers.")
+
+# Your existing functions (download_numbers_file, read_numbers_file, etc.) remain the same below...
 def download_numbers_file():
     url = "https://raw.githubusercontent.com/binahmad362/bookish-octo-couscous/main/rough.txt"
     try:
@@ -332,173 +552,5 @@ def process_numbers(country_name, country_code, numbers):
                 else:
                     print("Neither register_new_number.png nor request_review.png found")
 
-def main():
-    time.sleep(60)
-    # Open MuMu_Installer.exe without blocking
-    print("Opening MuMu_Installer.exe...")
-    subprocess.Popen("MuMu_Installer.exe")
-
-    # Wait 3 seconds for the installer to load
-    print("Waiting 3 seconds for installer to load...")
-    time.sleep(3)
-
-    # Look for the install.png image on screen
-    print("Searching for install.png on screen...")
-    install_location = pyautogui.locateOnScreen('install.png', confidence=0.8)
-    install_center = pyautogui.center(install_location)
-    print(f"Found install.png at: {install_location}")
-    print(f"Clicking at center: X: {install_center.x}, Y: {install_center.y}")
-    pyautogui.click(install_center)
-    print("Successfully clicked the install button!")
-
-    # Wait for installation to complete
-    print("Waiting for installation to complete...")
-    time.sleep(70)
-
-    # Click option.png
-    print("Searching for option.png on screen...")
-    option_location = pyautogui.locateOnScreen('option.png', confidence=0.8)
-    option_center = pyautogui.center(option_location)
-    print(f"Found option.png at: {option_location}")
-    print(f"Clicking at center: X: {option_center.x}, Y: {option_center.y}")
-    pyautogui.click(option_center)
-    print("Successfully clicked option.png!")
-
-    # Wait a moment for options to load
-    time.sleep(5)
-
-    # Click backup_restore.png
-    print("Searching for backup_restore.png on screen...")
-    backup_restore_location = pyautogui.locateOnScreen('backup_restore.png', confidence=0.8)
-    backup_restore_center = pyautogui.center(backup_restore_location)
-    print(f"Found backup_restore.png at: {backup_restore_location}")
-    print(f"Clicking at center: X: {backup_restore_center.x}, Y: {backup_restore_center.y}")
-    pyautogui.click(backup_restore_center)
-    print("Successfully clicked backup_restore.png!")
-
-    # Wait a moment for backup/restore options to load
-    time.sleep(5)
-
-    # Click restore.png
-    print("Searching for restore.png on screen...")
-    restore_location = pyautogui.locateOnScreen('restore.png', confidence=0.8)
-    restore_center = pyautogui.center(restore_location)
-    print(f"Found restore.png at: {restore_location}")
-    print(f"Clicking at center: X: {restore_center.x}, Y: {restore_center.y}")
-    pyautogui.click(restore_center)
-    print("Successfully clicked restore.png!")
-
-    # Wait for restore dialog to load
-    time.sleep(5)
-
-    # Click change_directory.png
-    print("Searching for change_directory.png on screen...")
-    change_directory_location = pyautogui.locateOnScreen('change_directory.png', confidence=0.8)
-    change_directory_center = pyautogui.center(change_directory_location)
-    print(f"Found change_directory.png at: {change_directory_location}")
-    print(f"Clicking at center: X: {change_directory_center.x}, Y: {change_directory_center.y}")
-    pyautogui.click(change_directory_center)
-    print("Successfully clicked change_directory.png!")
-
-    # Wait for directory dialog to load
-    time.sleep(1)
-
-    # Type the directory path and press Enter
-    print("Typing directory path...")
-    pyautogui.write(r'C:\Users\Rdpuser\Desktop\whatsapp')
-    pyautogui.press('enter')
-    print("Directory path entered successfully!")
-
-    # Wait for directory to load
-    time.sleep(5)
-
-    # Double click on mumudata.png
-    print("Searching for mumudata.png on screen...")
-    mumudata_location = pyautogui.locateOnScreen('mumudata.png', confidence=0.8)
-    mumudata_center = pyautogui.center(mumudata_location)
-    print(f"Found mumudata.png at: {mumudata_location}")
-    print(f"Double clicking at center: X: {mumudata_center.x}, Y: {mumudata_center.y}")
-    pyautogui.doubleClick(mumudata_center)
-    print("Successfully double clicked mumudata.png!")
-
-
-    time.sleep(5)
-    # Click start_emulator.png
-    print("Searching for start_emulator.png on screen...")
-    start_emulator = pyautogui.locateOnScreen('start_emulator.png', confidence=0.8)
-    start_emulator_center = pyautogui.center(start_emulator)
-    print(f"Found start_emulator.png at: {start_emulator}")
-    print(f"Clicking at center: X: {start_emulator_center.x}, Y: {start_emulator_center.y}")
-    pyautogui.click(start_emulator_center)
-    print("Successfully clicked start_emulator.png!")
-
-
-
-
-
-
-
-    # Wait 20 seconds for emulator to start
-    print("Waiting 20 seconds for emulator to start...")
-    time.sleep(60)
-
-    # ADB connection and WhatsApp launch with retry logic
-    print("Attempting to connect to ADB and launch WhatsApp...")
-    # Note: The connect_and_launch_whatsapp function is not defined in your code
-    # You'll need to implement this function or remove this call
-    # success = connect_and_launch_whatsapp()
-
-    # if not success:
-    #     print("Process failed - could not connect to emulator or launch WhatsApp.")
-    #     return
-
-    # Download and read numbers file
-
-    whatsapp_icon = pyautogui.locateOnScreen('whatsapp_icon.png', confidence=0.8)
-    whatsapp_icon = pyautogui.center(whatsapp_icon)
-    print(f"Found whatsapp_icon.png at: {whatsapp_icon}")
-    print(f"Clicking at center: X: {whatsapp_icon.x}, Y: {whatsapp_icon.y}")
-    pyautogui.click(whatsapp_icon)
-    print("Successfully clicked whatsapp_icon.png!")
-
-
-   
-
-
-    time.sleep(5)
-
-
-    print("Searching for first_agree.png on screen...")
-    first_agree = pyautogui.locateOnScreen('first_agree.png', confidence=0.8)
-    first_agree = pyautogui.center(first_agree)
-    print(f"Found start_emulator.png at: {first_agree}")
-    print(f"Clicking at center: X: {first_agree.x}, Y: {first_agree.y}")
-    pyautogui.click(first_agree)
-    print("Successfully clicked first_agree.png!")
-
-    time.sleep(5)
-
-    print("Setting up number verification...")
-    if not download_numbers_file():
-        return
-    
-    country_name, country_code, numbers = read_numbers_file()
-    
-    if not country_name or not country_code or not numbers:
-        print("Failed to get valid data from numbers file")
-        return
-    
-    print(f"\nStarting automation for {len(numbers)} numbers...")
-    print("Make sure WhatsApp is ready for number input!")
-    
-    # Wait a moment for user to prepare
-    time.sleep(2)
-    
-    # Start processing numbers
-    process_numbers(country_name, country_code, numbers)
-    
-    print("\nAutomation completed! Check not_usable.txt for unusable numbers.")
-
 if __name__ == "__main__":
     main()
-

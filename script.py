@@ -185,7 +185,7 @@ def main():
 
     # Wait 20 seconds for emulator to start
     print("Waiting 20 seconds for emulator to start...")
-    time.sleep(60)
+    time.sleep(150)
 
     # Rest of your WhatsApp automation code...
     whatsapp_icon = pyautogui.locateOnScreen('whatsapp_icon.png', confidence=0.8)
@@ -554,3 +554,4 @@ def process_numbers(country_name, country_code, numbers):
 
 if __name__ == "__main__":
     main()
+

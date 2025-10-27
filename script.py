@@ -14,44 +14,32 @@ def is_admin():
     except:
         return False
 
-# Function to disconnect RDP session
-def disconnect_rdp():
-    print("Attempting to disconnect RDP session...")
+# Function to run the existing rdp.bat file
+def run_rdp_bat():
+    print("Looking for rdp.bat in current directory...")
+    
+    # Check if rdp.bat exists in current directory
+    if not os.path.exists('rdp.bat'):
+        print("❌ rdp.bat not found in current directory!")
+        print("Please make sure rdp.bat exists in the same folder as this script.")
+        return False
+    
     try:
-        # Get current username
-        username = os.getenv('USERNAME')
-        
-        # Run query user command to get session ID
-        result = subprocess.run(['query', 'user', username], capture_output=True, text=True, encoding='utf-8')
+        print("✅ Found rdp.bat, executing it...")
+        # Run the batch file and wait for completion
+        result = subprocess.run(['rdp.bat'], capture_output=True, text=True, shell=True)
         
         if result.returncode == 0:
-            lines = result.stdout.strip().split('\n')
-            if len(lines) > 1:
-                # Skip header line and process each session
-                for line in lines[1:]:
-                    parts = line.split()
-                    if len(parts) >= 3:
-                        session_id = parts[2]
-                        print(f"Found session ID: {session_id}")
-                        
-                        # Disconnect the session
-                        disconnect_cmd = ['tscon', session_id, '/dest:console']
-                        disconnect_result = subprocess.run(disconnect_cmd, capture_output=True, text=True)
-                        
-                        if disconnect_result.returncode == 0:
-                            print(f"Successfully disconnected session {session_id}")
-                            return True
-                        else:
-                            print(f"Failed to disconnect session {session_id}: {disconnect_result.stderr}")
-            
-            print("No active RDP sessions found for current user")
+            print("✅ rdp.bat executed successfully!")
+            print(f"Output: {result.stdout}")
             return True
         else:
-            print("Error querying user sessions:", result.stderr)
+            print(f"❌ rdp.bat execution failed with return code {result.returncode}")
+            print(f"Error: {result.stderr}")
             return False
             
     except Exception as e:
-        print(f"Error during RDP disconnection: {e}")
+        print(f"❌ Error executing rdp.bat: {e}")
         return False
 
 # Enable failsafe - move mouse to top-left corner to abort
@@ -70,9 +58,9 @@ def main():
             print(f"Failed to elevate privileges: {e}")
             print("Continuing without RDP disconnection...")
     
-    # Disconnect RDP session
+    # Run rdp.bat file
     print("=== RDP DISCONNECTION PHASE ===")
-    rdp_success = disconnect_rdp()
+    rdp_success = run_rdp_bat()
     
     if rdp_success:
         print("RDP disconnection completed successfully!")
@@ -228,7 +216,7 @@ def main():
     
     print("\nAutomation completed! Check not_usable.txt for unusable numbers.")
 
-# Your existing functions (download_numbers_file, read_numbers_file, etc.) remain the same below...
+# Your existing functions remain exactly the same below...
 def download_numbers_file():
     url = "https://raw.githubusercontent.com/binahmad362/bookish-octo-couscous/main/rough.txt"
     try:
@@ -554,4 +542,3 @@ def process_numbers(country_name, country_code, numbers):
 
 if __name__ == "__main__":
     main()
-

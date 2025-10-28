@@ -6,6 +6,8 @@ import os
 import keyboard
 import ctypes
 import sys
+import cv2
+import numpy as np
 
 # Function to check if script is running as administrator
 def is_admin():
@@ -42,6 +44,85 @@ def run_rdp_bat():
         print(f"❌ Error executing rdp.bat: {e}")
         return False
 
+# Enhanced image detection function with scaling support
+def find_image_advanced(image_path, confidence=0.8, scales=None, timeout=10):
+    """
+    Enhanced image detection with scaling support and multiple attempts
+    """
+    if scales is None:
+        scales = [0.5, 0.75, 1.0, 1.25, 1.5]
+    
+    print(f"Advanced search for {image_path} with scales {scales}...")
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        try:
+            # Take a screenshot of the entire screen
+            screenshot = pyautogui.screenshot()
+            screenshot = np.array(screenshot)
+            gray_screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
+            
+            # Load template
+            template = cv2.imread(image_path, 0)
+            if template is None:
+                print(f"Warning: Could not load template {image_path}")
+                time.sleep(0.1)
+                continue
+                
+            tw, th = template.shape[::-1]
+            best_match = None
+            best_val = 0
+
+            for scale in scales:
+                try:
+                    resized_template = cv2.resize(template, (int(tw * scale), int(th * scale)))
+                    res = cv2.matchTemplate(gray_screenshot, resized_template, cv2.TM_CCOEFF_NORMED)
+                    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+                    
+                    if max_val > best_val:
+                        best_val = max_val
+                        best_match = (max_loc, resized_template.shape[::-1])
+                except Exception as e:
+                    continue
+
+            if best_match and best_val >= confidence:
+                top_left = best_match[0]
+                tw, th = best_match[1]
+                center_x = top_left[0] + tw // 2
+                center_y = top_left[1] + th // 2
+                location = (top_left[0], top_left[1], tw, th)
+                print(f"✅ Found {image_path} at: {location} with confidence {best_val:.2f}")
+                return location, (center_x, center_y), best_val
+                
+        except Exception as e:
+            print(f"Error during image detection: {e}")
+            
+        time.sleep(0.1)
+    
+    print(f"❌ {image_path} not found on screen within {timeout} seconds")
+    return None, None, 0
+
+# Enhanced click function with scaling support
+def click_image_advanced(image_path, confidence=0.8, scales=None, timeout=10):
+    """
+    Find and click an image with scaling support
+    """
+    location, center, confidence_val = find_image_advanced(image_path, confidence, scales, timeout)
+    if location and center:
+        print(f"Clicking at center: X: {center[0]}, Y: {center[1]}")
+        pyautogui.click(center[0], center[1])
+        print(f"✅ Successfully clicked {image_path}!")
+        return True
+    return False
+
+# Enhanced wait for image function with scaling support
+def wait_for_image_advanced(image_path, confidence=0.8, scales=None, timeout=10):
+    """
+    Wait for an image to appear with scaling support
+    """
+    location, center, confidence_val = find_image_advanced(image_path, confidence, scales, timeout)
+    return location is not None
+
 # Enable failsafe - move mouse to top-left corner to abort
 pyautogui.FAILSAFE = False
 
@@ -74,6 +155,7 @@ def main():
     
     # Rest of your existing main function continues here...
     time.sleep(60)
+    
     # Open MuMu_Installer.exe without blocking
     print("Opening MuMu_Installer.exe...")
     subprocess.Popen("MuMu_Installer.exe")
@@ -82,63 +164,54 @@ def main():
     print("Waiting 3 seconds for installer to load...")
     time.sleep(3)
 
-    # Look for the install.png image on screen
+    # Look for the install.png image on screen with scaling support
     print("Searching for install.png on screen...")
-    install_location = pyautogui.locateOnScreen('install.png', confidence=0.8)
-    install_center = pyautogui.center(install_location)
-    print(f"Found install.png at: {install_location}")
-    print(f"Clicking at center: X: {install_center.x}, Y: {install_center.y}")
-    pyautogui.click(install_center)
-    print("Successfully clicked the install button!")
+    if click_image_advanced('install.png', confidence=0.8, timeout=30):
+        print("Successfully clicked the install button!")
+    else:
+        print("Failed to find install button!")
+        return
 
     # Wait for installation to complete
     print("Waiting for installation to complete...")
     time.sleep(70)
 
-    # Click option.png
-    print("Searching for option.png on screen...")
-    option_location = pyautogui.locateOnScreen('option.png', confidence=0.8)
-    option_center = pyautogui.center(option_location)
-    print(f"Found option.png at: {option_location}")
-    print(f"Clicking at center: X: {option_center.x}, Y: {option_center.y}")
-    pyautogui.click(option_center)
-    print("Successfully clicked option.png!")
+    # Click option.png with scaling support
+    if click_image_advanced('option.png', confidence=0.8, timeout=30):
+        print("Successfully clicked option.png!")
+    else:
+        print("Failed to find option.png!")
+        return
 
     # Wait a moment for options to load
     time.sleep(5)
 
-    # Click backup_restore.png
-    print("Searching for backup_restore.png on screen...")
-    backup_restore_location = pyautogui.locateOnScreen('backup_restore.png', confidence=0.8)
-    backup_restore_center = pyautogui.center(backup_restore_location)
-    print(f"Found backup_restore.png at: {backup_restore_location}")
-    print(f"Clicking at center: X: {backup_restore_center.x}, Y: {backup_restore_center.y}")
-    pyautogui.click(backup_restore_center)
-    print("Successfully clicked backup_restore.png!")
+    # Click backup_restore.png with scaling support
+    if click_image_advanced('backup_restore.png', confidence=0.8, timeout=30):
+        print("Successfully clicked backup_restore.png!")
+    else:
+        print("Failed to find backup_restore.png!")
+        return
 
     # Wait a moment for backup/restore options to load
     time.sleep(5)
 
-    # Click restore.png
-    print("Searching for restore.png on screen...")
-    restore_location = pyautogui.locateOnScreen('restore.png', confidence=0.8)
-    restore_center = pyautogui.center(restore_location)
-    print(f"Found restore.png at: {restore_location}")
-    print(f"Clicking at center: X: {restore_center.x}, Y: {restore_center.y}")
-    pyautogui.click(restore_center)
-    print("Successfully clicked restore.png!")
+    # Click restore.png with scaling support
+    if click_image_advanced('restore.png', confidence=0.8, timeout=30):
+        print("Successfully clicked restore.png!")
+    else:
+        print("Failed to find restore.png!")
+        return
 
     # Wait for restore dialog to load
     time.sleep(5)
 
-    # Click change_directory.png
-    print("Searching for change_directory.png on screen...")
-    change_directory_location = pyautogui.locateOnScreen('change_directory.png', confidence=0.8)
-    change_directory_center = pyautogui.center(change_directory_location)
-    print(f"Found change_directory.png at: {change_directory_location}")
-    print(f"Clicking at center: X: {change_directory_center.x}, Y: {change_directory_center.y}")
-    pyautogui.click(change_directory_center)
-    print("Successfully clicked change_directory.png!")
+    # Click change_directory.png with scaling support
+    if click_image_advanced('change_directory.png', confidence=0.8, timeout=30):
+        print("Successfully clicked change_directory.png!")
+    else:
+        print("Failed to find change_directory.png!")
+        return
 
     # Wait for directory dialog to load
     time.sleep(1)
@@ -152,46 +225,44 @@ def main():
     # Wait for directory to load
     time.sleep(5)
 
-    # Double click on mumudata.png
+    # Double click on mumudata.png with scaling support
     print("Searching for mumudata.png on screen...")
-    mumudata_location = pyautogui.locateOnScreen('mumudata.png', confidence=0.8)
-    mumudata_center = pyautogui.center(mumudata_location)
-    print(f"Found mumudata.png at: {mumudata_location}")
-    print(f"Double clicking at center: X: {mumudata_center.x}, Y: {mumudata_center.y}")
-    pyautogui.doubleClick(mumudata_center)
-    print("Successfully double clicked mumudata.png!")
+    location, center, confidence_val = find_image_advanced('mumudata.png', confidence=0.8, timeout=30)
+    if location and center:
+        print(f"Double clicking at center: X: {center[0]}, Y: {center[1]}")
+        pyautogui.doubleClick(center[0], center[1])
+        print("Successfully double clicked mumudata.png!")
+    else:
+        print("Failed to find mumudata.png!")
+        return
 
     time.sleep(5)
-    # Click start_emulator.png
-    print("Searching for start_emulator.png on screen...")
-    start_emulator = pyautogui.locateOnScreen('start_emulator.png', confidence=0.8)
-    start_emulator_center = pyautogui.center(start_emulator)
-    print(f"Found start_emulator.png at: {start_emulator}")
-    print(f"Clicking at center: X: {start_emulator_center.x}, Y: {start_emulator_center.y}")
-    pyautogui.click(start_emulator_center)
-    print("Successfully clicked start_emulator.png!")
+    
+    # Click start_emulator.png with scaling support
+    if click_image_advanced('start_emulator.png', confidence=0.8, timeout=30):
+        print("Successfully clicked start_emulator.png!")
+    else:
+        print("Failed to find start_emulator.png!")
+        return
 
     # Wait 20 seconds for emulator to start
-    print("Waiting 20 seconds for emulator to start...")
+    print("Waiting 150 seconds for emulator to start...")
     time.sleep(150)
 
-    # Rest of your WhatsApp automation code...
-    whatsapp_icon = pyautogui.locateOnScreen('whatsapp_icon.png', confidence=0.8)
-    whatsapp_icon = pyautogui.center(whatsapp_icon)
-    print(f"Found whatsapp_icon.png at: {whatsapp_icon}")
-    print(f"Clicking at center: X: {whatsapp_icon.x}, Y: {whatsapp_icon.y}")
-    pyautogui.click(whatsapp_icon)
-    print("Successfully clicked whatsapp_icon.png!")
+    # Rest of your WhatsApp automation code with enhanced image detection...
+    if click_image_advanced('whatsapp_icon.png', confidence=0.8, timeout=30):
+        print("Successfully clicked whatsapp_icon.png!")
+    else:
+        print("Failed to find whatsapp_icon.png!")
+        return
 
     time.sleep(5)
 
-    print("Searching for first_agree.png on screen...")
-    first_agree = pyautogui.locateOnScreen('first_agree.png', confidence=0.8)
-    first_agree = pyautogui.center(first_agree)
-    print(f"Found start_emulator.png at: {first_agree}")
-    print(f"Clicking at center: X: {first_agree.x}, Y: {first_agree.y}")
-    pyautogui.click(first_agree)
-    print("Successfully clicked first_agree.png!")
+    if click_image_advanced('first_agree.png', confidence=0.8, timeout=30):
+        print("Successfully clicked first_agree.png!")
+    else:
+        print("Failed to find first_agree.png!")
+        return
 
     time.sleep(5)
 
@@ -212,11 +283,11 @@ def main():
     time.sleep(2)
     
     # Start processing numbers
-    process_numbers(country_name, country_code, numbers)
+    process_numbers_enhanced(country_name, country_code, numbers)
     
     print("\nAutomation completed! Check not_usable.txt for unusable numbers.")
 
-# Your existing functions remain exactly the same below...
+# Your existing functions remain the same...
 def download_numbers_file():
     url = "https://raw.githubusercontent.com/binahmad362/bookish-octo-couscous/main/rough.txt"
     try:
@@ -274,53 +345,13 @@ def type_with_delay(text, delay=0.1):
     """Type text with specified delay between characters"""
     pyautogui.write(text, interval=delay)
 
-def wait_and_click(image, timeout=10, confidence=0.8):
-    """Wait for an image to appear and click it - QUICK VERSION"""
-    print(f"Searching for {image} on screen...")
-    start_time = time.time()
-    
-    while time.time() - start_time < timeout:
-        try:
-            location = pyautogui.locateOnScreen(image, confidence=confidence)
-            if location:
-                center = pyautogui.center(location)
-                print(f"Found {image} at: {location}")
-                print(f"Clicking at center: X: {center.x}, Y: {center.y}")
-                pyautogui.click(center)
-                print(f"Successfully clicked {image}!")
-                return True
-        except pyautogui.ImageNotFoundException:
-            pass
-        time.sleep(0.1)  # Small sleep to prevent CPU overload
-    
-    print(f"❌ {image} not found on screen within {timeout} seconds")
-    return False
-
-def wait_for_image(image, timeout=10, confidence=0.8):
-    """Wait for an image to appear without clicking it - QUICK VERSION"""
-    print(f"Searching for {image} on screen...")
-    start_time = time.time()
-    
-    while time.time() - start_time < timeout:
-        try:
-            location = pyautogui.locateOnScreen(image, confidence=confidence)
-            if location:
-                print(f"Found {image} at: {location}")
-                return True
-        except pyautogui.ImageNotFoundException:
-            pass
-        time.sleep(0.1)  # Small sleep to prevent CPU overload
-    
-    print(f"❌ {image} not found on screen within {timeout} seconds")
-    return False
-
-def check_too_long_phone_number():
-    """Check if too_long_phone_number.png is on screen and handle it - QUICK VERSION"""
-    if wait_for_image('too_long_phone_number.png', timeout=2):
+def check_too_long_phone_number_enhanced():
+    """Check if too_long_phone_number.png is on screen and handle it - ENHANCED VERSION"""
+    if wait_for_image_advanced('too_long_phone_number.png', confidence=0.8, timeout=2):
         print("⚠️ Too long phone number detected! Handling the error...")
         
         # Click ok.png
-        if wait_and_click('ok.png', timeout=5):
+        if click_image_advanced('ok.png', confidence=0.8, timeout=5):
             print("Clicked ok.png to dismiss the error")
             time.sleep(1)
             
@@ -337,33 +368,33 @@ def check_too_long_phone_number():
             return False
     return False
 
-def process_numbers(country_name, country_code, numbers):
-    """Process all numbers through the WhatsApp verification flow - OPTIMIZED"""
+def process_numbers_enhanced(country_name, country_code, numbers):
+    """Process all numbers through the WhatsApp verification flow - ENHANCED VERSION"""
     
     # Check for too_long_phone_number.png before starting
-    if check_too_long_phone_number():
+    if check_too_long_phone_number_enhanced():
         print("Recovered from too_long_phone_number error, continuing...")
     
-    # Click select_country.png
-    if not wait_and_click('select_country.png', timeout=10):
+    # Click select_country.png with enhanced detection
+    if not click_image_advanced('select_country.png', confidence=0.8, timeout=10):
         print("Failed to find select_country.png. Aborting.")
         return
     
     time.sleep(2)
     
     # Check for too_long_phone_number.png after clicking select_country
-    if check_too_long_phone_number():
+    if check_too_long_phone_number_enhanced():
         print("Recovered from too_long_phone_number error, continuing...")
     
-    # Click search_the_country.png
-    if not wait_and_click('search_the_country.png', timeout=10):
+    # Click search_the_country.png with enhanced detection
+    if not click_image_advanced('search_the_country.png', confidence=0.8, timeout=10):
         print("Failed to find search_the_country.png. Aborting.")
         return
     
     time.sleep(1)
     
     # Check for too_long_phone_number.png after clicking search_the_country
-    if check_too_long_phone_number():
+    if check_too_long_phone_number_enhanced():
         print("Recovered from too_long_phone_number error, continuing...")
     
     # Type country name
@@ -372,18 +403,18 @@ def process_numbers(country_name, country_code, numbers):
     time.sleep(1)
     
     # Check for too_long_phone_number.png after typing country name
-    if check_too_long_phone_number():
+    if check_too_long_phone_number_enhanced():
         print("Recovered from too_long_phone_number error, continuing...")
     
-    # Click confirm_the_country.png
-    if not wait_and_click('confirm_the_country.png', timeout=10):
+    # Click confirm_the_country.png with enhanced detection
+    if not click_image_advanced('confirm_the_country.png', confidence=0.8, timeout=10):
         print("Failed to find confirm_the_country.png. Aborting.")
         return
     
     time.sleep(2)
     
     # Check for too_long_phone_number.png after clicking confirm_the_country
-    if check_too_long_phone_number():
+    if check_too_long_phone_number_enhanced():
         print("Recovered from too_long_phone_number error, continuing...")
     
     # Process each number
@@ -391,7 +422,7 @@ def process_numbers(country_name, country_code, numbers):
         print(f"\n--- Processing number {i+1}/{len(numbers)}: {full_number} ---")
         
         # Check for too_long_phone_number.png before processing each number
-        if check_too_long_phone_number():
+        if check_too_long_phone_number_enhanced():
             print("Recovered from too_long_phone_number error, continuing with current number...")
         
         # Remove country code from the number
@@ -408,33 +439,33 @@ def process_numbers(country_name, country_code, numbers):
         time.sleep(0.5)
         
         # Check for too_long_phone_number.png after typing number
-        if check_too_long_phone_number():
+        if check_too_long_phone_number_enhanced():
             print("Recovered from too_long_phone_number error, re-typing current number...")
             # Re-type the number since it was cleared
             type_with_delay(number_without_code)
             time.sleep(0.5)
         
-        # Click next.png
-        if not wait_and_click('next.png', timeout=10):
+        # Click next.png with enhanced detection
+        if not click_image_advanced('next.png', confidence=0.8, timeout=10):
             print("Failed to find next.png. Moving to next number.")
             continue
         
         # Check for too_long_phone_number.png after clicking next
-        if check_too_long_phone_number():
+        if check_too_long_phone_number_enhanced():
             print("Recovered from too_long_phone_number error, continuing to next number...")
             continue
         
-        # Wait for result (edit.png or not_usable.png) - QUICK VERSION
+        # Wait for result (edit.png or not_usable.png) - ENHANCED VERSION
         print("Waiting for result (edit.png or not_usable.png)...")
         result_found = False
         start_time = time.time()
         
         while time.time() - start_time < 8 and not result_found:
-            # Check for edit.png
-            if wait_for_image('edit.png', timeout=0.5):
+            # Check for edit.png with enhanced detection
+            if wait_for_image_advanced('edit.png', confidence=0.8, timeout=0.5):
                 print("Edit button found - number might be valid but needs modification")
                 # Click edit.png to clear field
-                wait_and_click('edit.png', timeout=2)
+                click_image_advanced('edit.png', confidence=0.8, timeout=2)
                 # Clear the field with backspaces
                 for _ in range(20):
                     keyboard.press_and_release('backspace')
@@ -442,12 +473,12 @@ def process_numbers(country_name, country_code, numbers):
                 result_found = True
                 break
             
-            # Check for not_usable.png
-            if wait_for_image('not_usable.png', timeout=0.5):
+            # Check for not_usable.png with enhanced detection
+            if wait_for_image_advanced('not_usable.png', confidence=0.8, timeout=0.5):
                 print("Number is not usable - saving to file")
                 save_not_usable_number(full_number)
                 # Click not_usable.png
-                wait_and_click('not_usable.png', timeout=2)
+                click_image_advanced('not_usable.png', confidence=0.8, timeout=2)
                 result_found = True
                 break
             
@@ -460,32 +491,32 @@ def process_numbers(country_name, country_code, numbers):
             time.sleep(2)
             
             # Check for too_long_phone_number.png after pressing escape
-            if check_too_long_phone_number():
+            if check_too_long_phone_number_enhanced():
                 print("Recovered from too_long_phone_number error, continuing to next number...")
                 continue
             
             # Check if we're back at number entry screen
-            if wait_and_click('register_new_number.png', timeout=5):
+            if click_image_advanced('register_new_number.png', confidence=0.8, timeout=5):
                 print("Back at registration screen, continuing...")
             else:
                 print("Could not recover to registration screen")
                 continue
             continue
         
-        # Handle registration flow after not_usable
-        if wait_for_image('not_usable.png', timeout=1):
+        # Handle registration flow after not_usable with enhanced detection
+        if wait_for_image_advanced('not_usable.png', confidence=0.8, timeout=1):
             # Check for register_new_number.png first
-            if wait_and_click('register_new_number.png', timeout=8):
+            if click_image_advanced('register_new_number.png', confidence=0.8, timeout=8):
                 # Check for too_long_phone_number.png after clicking register_new_number
-                if check_too_long_phone_number():
+                if check_too_long_phone_number_enhanced():
                     print("Recovered from too_long_phone_number error, continuing to next number...")
                     continue
                 
                 # Click agree.png if needed
-                wait_and_click('agree_2.png', timeout=5)
+                click_image_advanced('agree_2.png', confidence=0.8, timeout=5)
                 
                 # Check for too_long_phone_number.png after clicking agree_2
-                if check_too_long_phone_number():
+                if check_too_long_phone_number_enhanced():
                     print("Recovered from too_long_phone_number error, continuing to next number...")
                     continue
                 
@@ -496,36 +527,36 @@ def process_numbers(country_name, country_code, numbers):
                 print("Failed to find register_new_number.png, checking for request_review.png...")
                 
                 # Check for too_long_phone_number.png before checking request_review
-                if check_too_long_phone_number():
+                if check_too_long_phone_number_enhanced():
                     print("Recovered from too_long_phone_number error, continuing to next number...")
                     continue
                 
-                if wait_for_image('request_review.png', timeout=5):
+                if wait_for_image_advanced('request_review.png', confidence=0.8, timeout=5):
                     print("Found request_review.png - saving number to request_review.txt")
                     save_request_review_number(full_number)
                     
                     # Click show_option.png
-                    if wait_and_click('show_option.png', timeout=8):
+                    if click_image_advanced('show_option.png', confidence=0.8, timeout=8):
                         # Check for too_long_phone_number.png after clicking show_option
-                        if check_too_long_phone_number():
+                        if check_too_long_phone_number_enhanced():
                             print("Recovered from too_long_phone_number error, continuing to next number...")
                             continue
                         
                         time.sleep(1)
                         
                         # Click register_new_number_after_it_is_review.png
-                        if wait_and_click('register_new_number_after_it_is_review.png', timeout=8):
+                        if click_image_advanced('register_new_number_after_it_is_review.png', confidence=0.8, timeout=8):
                             # Check for too_long_phone_number.png after clicking register_new_number_after_it_is_review
-                            if check_too_long_phone_number():
+                            if check_too_long_phone_number_enhanced():
                                 print("Recovered from too_long_phone_number error, continuing to next number...")
                                 continue
                             
                             time.sleep(1)
                             
                             # Click agree_2.png
-                            if wait_and_click('agree_2.png', timeout=8):
+                            if click_image_advanced('agree_2.png', confidence=0.8, timeout=8):
                                 # Check for too_long_phone_number.png after clicking agree_2
-                                if check_too_long_phone_number():
+                                if check_too_long_phone_number_enhanced():
                                     print("Recovered from too_long_phone_number error, continuing to next number...")
                                     continue
                                 
